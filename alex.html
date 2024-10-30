@@ -12,7 +12,8 @@
     <table id="profitTable"></table>
     <h3>Calculeaza-ti profitul pe luna aceasta</h3>
 
-    <table id="weeklySummaryTable"></table>
+    <table id="weeklySummaryTable"></table><br>
+    <button onclick="saveProfitAsText()" class="custom-button">Descarca Profitul</button>
 
     <script>
     // Get a unique identifier for this page from the `data-id` attribute
@@ -168,6 +169,51 @@
             const options = { month: 'long' }; // Specify that we want the full month name
             return new Intl.DateTimeFormat('ro-RO', options).format(date);
         }
+
+        function saveProfitAsText() {
+    // Get the current date and month
+    const date = new Date();
+    const day = String(date.getDate()).padStart(2, '0');
+    const month = new Intl.DateTimeFormat('ro-RO', { month: 'long' }).format(date); // Full month name in Romanian
+    const year = date.getFullYear();
+    
+    // Start building the text for the file
+    let profitText = `Raport profit lunar pentru Alex | ${day} ${month} ${year}\n`;
+    profitText += "-------------------------\n";
+
+    // Get weekly profit data from the table
+    const weeklySummaryTable = document.getElementById('weeklySummaryTable');
+    const rows = weeklySummaryTable.getElementsByTagName('tr');
+    
+    if (rows.length > 1) { // Ensure there's data in the table
+        const weeklySums = rows[1].getElementsByTagName('td');
+
+        // Add each week's profit to the text file
+        for (let i = 0; i < weeklySums.length - 1; i++) { // Skip the last cell (monthly profit)
+            profitText += `Săptămâna ${i + 1}: ${weeklySums[i].innerText}\n`;
+        }
+
+        // Add monthly profit
+        const monthlyProfit = weeklySums[weeklySums.length - 1].innerText;
+        profitText += "-------------------------\n";
+        profitText += `Profit Lunar: ${monthlyProfit}\n`;
+    } else {
+        profitText += "Nu există date pentru salvare.\n";
+    }
+
+    // Create a Blob with the profit text
+    const blob = new Blob([profitText], { type: 'text/plain' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `profit_report_${month}_${year}_alex.txt`; // Include month and year in filename
+
+    // Simulate a click on the link to trigger the download
+    link.click();
+
+    // Clean up by revoking the object URL
+    URL.revokeObjectURL(link.href);
+}
+
 
         window.onload = function() {
             document.getElementById('date').innerText = formatDate();

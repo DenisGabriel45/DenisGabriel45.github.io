@@ -5,8 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Profitul lui Denis</title>
     <link rel="stylesheet" href="style2.css">
-    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database.js"></script>
 </head>
 <body data-id="store1">
     <h1>Bine ai revenit Denis!</h1>
@@ -14,37 +12,28 @@
     <table id="profitTable"></table>
     <h3>Calculeaza-ti profitul pe luna aceasta</h3>
 
-    <table id="weeklySummaryTable"></table>
+    <table id="weeklySummaryTable"></table><br>
+    <button onclick="saveProfitAsText()" class="custom-button">Descarca Profitul</button>
 
     <script>
-    // Firebase configuration (replace with your own config)
-    const firebaseConfig = {
-        apiKey: "AIzaSyA6O2lqCMG8Q8ap_ieenJAbtlVViWRcn2g",
-        authDomain: "fptcalculator.firebaseapp.com",
-        databaseURL: "https://fptcalculator-default-rtdb.firebaseio.com",
-        projectId: "fptcalculator",
-        storageBucket: "fptcalculator.firebasestorage.app",
-        messagingSenderId: "1086743975775",
-        appId: "1:1086743975775:web:7c81fd0feaeb6b7437c8ea",
-        measurementId: "G-KTH80X3RZ6"
-    };
-
-    // Initialize Firebase
-    const app = firebase.initializeApp(firebaseConfig);
-    const database = firebase.database();
-
+    // Get a unique identifier for this page from the `data-id` attribute
     const pageID = document.body.getAttribute('data-id'); // "store1", "store2", etc.
 
     function createProfitTable() {
         const date = new Date();
         const month = date.getMonth(); // 0-indexed, so January is 0
         const year = date.getFullYear();
-        const daysInMonth = new Date(year, month + 1, 0).getDate(); 
 
+        // Get the number of days in the current month
+        const daysInMonth = new Date(year, month + 1, 0).getDate(); 
+        
+        // Create table for profit display
         const profitTable = document.getElementById('profitTable');
         profitTable.innerHTML = ''; // Clear previous content
+
+        // Create table header for weekdays
         const headerRow = document.createElement('tr');
-        const daysOfWeek = ['Luni', 'Marti', 'Miercuri', 'Joi', 'Vineri'];
+        const daysOfWeek = ['Luni', 'Marti', 'Miercuri', 'Joi', 'Vineri']; // Only weekdays, no 'Total' column
         daysOfWeek.forEach(day => {
             const th = document.createElement('th');
             th.innerText = day;
@@ -52,43 +41,40 @@
         });
         profitTable.appendChild(headerRow);
 
+        // Create the profit rows for 4 weeks, excluding weekends
         let currentRow;
         let dayCount = 1;
 
-        for (let week = 0; week < 4; week++) {
+        for (let week = 0; week < 4; week++) { // 4 weeks
             currentRow = document.createElement('tr');
             let weekdaysCount = 0;
 
-            while (weekdaysCount < 5 && dayCount <= daysInMonth) {
+            while (weekdaysCount < 5 && dayCount <= daysInMonth) { // 5 weekdays per week
                 const currentDate = new Date(year, month, dayCount);
-                const dayOfWeek = currentDate.getDay();
+                const dayOfWeek = currentDate.getDay(); // Get the day of the week (0 = Sunday, 6 = Saturday)
 
+                // Only add input fields for weekdays (Monday to Friday)
                 if (dayOfWeek >= 1 && dayOfWeek <= 5) {
                     const td = document.createElement('td');
+                    // Create an input field for profit for each day
                     const input = document.createElement('input');
                     input.type = 'number';
                     input.className = 'input-cell';
                     input.placeholder = '0';
-                    input.dataset.date = `${pageID}-${year}-${month + 1}-${dayCount}`; 
+                    input.dataset.date = `${pageID}-${year}-${month + 1}-${dayCount}`; // Store date in data attribute
 
-                    // Load saved profit from Firebase
-                    database.ref(`profits/${input.dataset.date}`).once('value').then(snapshot => {
-                        if (snapshot.exists()) {
-                            const savedProfit = snapshot.val().profit;
-                            input.value = savedProfit; // Set input value to saved profit
-                            updateInputColor(input); // Update color based on loaded value
-                        }
-                    });
+                    // Load saved profit from local storage
+                    const savedProfit = localStorage.getItem(input.dataset.date);
+                    if (savedProfit) {
+                        input.value = savedProfit; // Set input value to saved profit
+                        updateInputColor(input); // Update color based on loaded value
+                    }
 
                     // Function to update background color based on value
                     input.oninput = function() {
-                        const profitValue = input.value;
-                        // Save profit to Firebase
-                        database.ref(`profits/${input.dataset.date}`).set({
-                            profit: profitValue
-                        });
-                        updateInputColor(input);
-                        updateTotalProfit();
+                        localStorage.setItem(input.dataset.date, input.value); // Save profit to local storage
+                        updateInputColor(input); // Update color based on current value
+                        updateTotalProfit(); // Update total profit when input changes
                     };
 
                     td.appendChild(input);
@@ -98,30 +84,35 @@
                 dayCount++;
             }
 
+            // Append the row only if it has cells
             if (weekdaysCount > 0) {
                 profitTable.appendChild(currentRow);
             }
         }
 
+        // After creating the profit table, update the weekly totals and the monthly total table
         updateTotalProfit();
     }
 
+    // Function to update input color based on value
     function updateInputColor(input) {
         const value = Number(input.value);
         if (value > 0) {
-            input.style.backgroundColor = 'lightgreen';
+            input.style.backgroundColor = 'lightgreen'; // Positive profit
         } else if (value < 0) {
-            input.style.backgroundColor = 'lightcoral';
+            input.style.backgroundColor = 'lightcoral'; // Negative profit
         } else {
-            input.style.backgroundColor = 'lightyellow';
+            input.style.backgroundColor = 'lightyellow'; // Zero profit
         }
     }
 
+    // Function to update weekly and monthly totals
     function updateTotalProfit() {
         let totalProfit = 0;
         const weeklySummaryTable = document.getElementById('weeklySummaryTable');
-        weeklySummaryTable.innerHTML = ''; 
+        weeklySummaryTable.innerHTML = ''; // Clear previous weekly summary content
 
+        // Create header row for the summary table
         const summaryHeader = document.createElement('tr');
         const headers = ['Sapt #1', 'Sapt #2', 'Sapt #3', 'Sapt #4', 'Profit Lunar'];
         headers.forEach(header => {
@@ -131,9 +122,11 @@
         });
         weeklySummaryTable.appendChild(summaryHeader);
 
+        // Array to hold the weekly sums
         let weeklySums = [];
         const rows = document.querySelectorAll('#profitTable tr');
 
+        // Calculate and update each week's total
         for (let i = 1; i < rows.length; i++) { // Skip the header row
             let weeklySum = 0;
             const inputs = rows[i].querySelectorAll('.input-cell');
@@ -146,6 +139,7 @@
             weeklySums.push(weeklySum.toFixed(2));
         }
 
+        // Create a new row to display the weekly totals in the second table
         const summaryRow = document.createElement('tr');
         weeklySums.forEach(sum => {
             const td = document.createElement('td');
@@ -153,6 +147,7 @@
             summaryRow.appendChild(td);
         });
 
+        // Add the total monthly profit
         const totalTd = document.createElement('td');
         totalTd.innerText = totalProfit.toFixed(2);
         summaryRow.appendChild(totalTd);
@@ -160,25 +155,71 @@
         weeklySummaryTable.appendChild(summaryRow);
     }
 
-    function formatDate() {
-        const date = new Date();
-        const day = String(date.getDate()).padStart(2, '0');
-        const month = String(date.getMonth() + 1).padStart(2, '0'); 
-        const year = date.getFullYear();
-        return `${day}/${month}/${year}`;
+        function formatDate() {
+            const date = new Date();
+            const day = String(date.getDate()).padStart(2, '0');
+            const month = String(date.getMonth() + 1).padStart(2, '0'); // Months are 0-indexed
+            const year = date.getFullYear();
+
+            return `${day}/${month}/${year}`;
+        }
+
+        function getCurrentMonth() {
+            const date = new Date();
+            const options = { month: 'long' }; // Specify that we want the full month name
+            return new Intl.DateTimeFormat('ro-RO', options).format(date);
+        }
+
+        function saveProfitAsText() {
+    // Get the current date and month
+    const date = new Date();
+    const day = String(date.getDate()).padStart(2, '0');
+    const month = new Intl.DateTimeFormat('ro-RO', { month: 'long' }).format(date); // Full month name in Romanian
+    const year = date.getFullYear();
+    
+    // Start building the text for the file
+    let profitText = `Raport profit lunar pentru Denis | ${day} ${month} ${year}\n`;
+    profitText += "-------------------------\n";
+
+    // Get weekly profit data from the table
+    const weeklySummaryTable = document.getElementById('weeklySummaryTable');
+    const rows = weeklySummaryTable.getElementsByTagName('tr');
+    
+    if (rows.length > 1) { // Ensure there's data in the table
+        const weeklySums = rows[1].getElementsByTagName('td');
+
+        // Add each week's profit to the text file
+        for (let i = 0; i < weeklySums.length - 1; i++) { // Skip the last cell (monthly profit)
+            profitText += `Săptămâna ${i + 1}: ${weeklySums[i].innerText}\n`;
+        }
+
+        // Add monthly profit
+        const monthlyProfit = weeklySums[weeklySums.length - 1].innerText;
+        profitText += "-------------------------\n";
+        profitText += `Profit Lunar: ${monthlyProfit}\n`;
+    } else {
+        profitText += "Nu există date pentru salvare.\n";
     }
 
-    function getCurrentMonth() {
-        const date = new Date();
-        const options = { month: 'long' }; 
-        return new Intl.DateTimeFormat('ro-RO', options).format(date);
-    }
+    // Create a Blob with the profit text
+    const blob = new Blob([profitText], { type: 'text/plain' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `profit_report_${month}_${year}_denis.txt`; // Include month and year in filename
 
-    window.onload = function() {
-        document.getElementById('date').innerText = formatDate();
-        document.getElementById('month').innerText = getCurrentMonth();
-        createProfitTable();
-    };
+    // Simulate a click on the link to trigger the download
+    link.click();
+
+    // Clean up by revoking the object URL
+    URL.revokeObjectURL(link.href);
+}
+
+
+        window.onload = function() {
+            document.getElementById('date').innerText = formatDate();
+            document.getElementById('month').innerText = getCurrentMonth();
+            createProfitTable()
+        };
     </script>
 </body>
 </html>
